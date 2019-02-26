@@ -7,8 +7,8 @@ function onScoreUpdate(dropPosition, bounciness, size, bucketLabel) {
 
 function runAnalysis() {
   const testSetSize = 100;
-  // extracting test and training set from the data array divided by the testSetSize
-  const [testSet, trainingSet] = splitDataset(outputs, testSetSize);
+  // extracting test and training set from the data array split by the testSetSize
+  const [testSet, trainingSet] = splitDataset(minMax(outputs, 3), testSetSize);
 
   // create a range of k's
   // filter out the ones that are equal to the test bucket label
@@ -76,4 +76,24 @@ function splitDataset(data, testCount) {
   const testSet = _.slice(shuffled, 0, testCount);
   const trainingSet = _.slice(shuffled, testCount);
   return [testSet, trainingSet];
+}
+
+function minMax(data, featureCount) {
+  // duplicate the data array
+  const dataClone = _.cloneDeep(data);
+  // loop featureCount times (all except bucket label)
+  for (let i = 0; i < featureCount; i++) {
+    // create an array for each feature
+    const column = dataClone.map((row) => row[i]);
+    // extract min and max of each feature
+    const min = _.min(column);
+    const max = _.max(column);
+    // loop through all the rows in the data array
+    for (let j = 0; j < dataClone.length; j++) {
+      // replace all the values with normalized ones
+      // j as a row, i as a feature (column)
+      dataClone[j][i] = (dataClone[j][i] - min) / (max - min);
+    }
+  }
+  return dataClone;
 }
