@@ -7,23 +7,28 @@ function onScoreUpdate(dropPosition, bounciness, size, bucketLabel) {
 
 function runAnalysis() {
   const testSetSize = 100;
-  // extracting test and training set from the data array split by the testSetSize
-  const [testSet, trainingSet] = splitDataset(minMax(outputs, 3), testSetSize);
+  const k = 15;
 
-  // create a range of k's
-  // filter out the ones that are equal to the test bucket label
-  // with arrays in the training set as data
-  // and drop point from test set as control point
-  _.range(1, 20).forEach((k) => {
+  // create a range of indeces for all the features
+  _.range(0, 3).forEach((feature) => {
+    // shorten outputs arrays to just two elements like [feature, label]
+    const data = _.map(outputs, (row) => [row[feature], _.last(row)]);
+    // extracting test and training set from the data array split by the testSetSize
+    const [testSet, trainingSet] = splitDataset(minMax(data, 1), testSetSize);
     const accuracy = _.chain(testSet)
+      // filter out the ones that are equal to the test bucket label (last element)
+      // with arrays in the training set as input data
+      // and drop point from test set as control point
       .filter((testSample) => {
-        return knn(trainingSet, _.initial(testSample), k) === testSample[3];
+        return (
+          knn(trainingSet, _.initial(testSample), k) === _.last(testSample)
+        );
       })
       .size()
       // and find the percentage of correct predictions
       .divide(testSetSize)
       .value();
-    console.log('for k ', k, 'Accuracy is', accuracy);
+    console.log('for feature ', feature, 'accuracy is', accuracy);
   });
 }
 
