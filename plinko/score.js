@@ -1,15 +1,17 @@
 const outputs = [];
 const point = 300;
 
+// getting the data
 function onScoreUpdate(dropPosition, bounciness, size, bucketLabel) {
   outputs.push([dropPosition, bounciness, size, bucketLabel]);
 }
 
+// run knn analysis using lodash
 function runAnalysis() {
   const testSetSize = 100;
   const k = 15;
 
-  // create a range of indeces for all the features
+  // create a range of indices for all the features
   _.range(0, 3).forEach((feature) => {
     // shorten outputs arrays to just two elements like [feature, label]
     const data = _.map(outputs, (row) => [row[feature], _.last(row)]);
@@ -76,6 +78,8 @@ function distance(pointA, pointB) {
   );
 }
 
+// shuffle the data array
+// split from 0 to testCount and from testCount to the end
 function splitDataset(data, testCount) {
   const shuffled = _.shuffle(data);
   const testSet = _.slice(shuffled, 0, testCount);
@@ -83,6 +87,7 @@ function splitDataset(data, testCount) {
   return [testSet, trainingSet];
 }
 
+// normalize the feature values
 function minMax(data, featureCount) {
   // duplicate the data array
   const dataClone = _.cloneDeep(data);
