@@ -3,27 +3,22 @@ const _ = require('lodash');
 
 class LinearRegression {
   constructor(features, labels, options) {
-    this.features = tf.tensor(features);
+    this.features = this.processFeatures(features);
     this.labels = tf.tensor(labels);
-
-    // appending the features tensor to a column of ones
-    this.features = tf
-      .ones([this.features.shape[0], 1])
-      .concat(this.features, 1);
+    this.mseRecords = [];
 
     // use default object or override it with options if provided
-    // this.options = {learningRate: 0.1, iterations: 1000, ...options};
-
+    // this.options = {learningRate: 0.1, iterations: 1000, ...options};  // ES6
     this.options = Object.assign(
-      { learningRate: 0.1, iterations: 1000 },
+      { learningRate: 0.0001, iterations: 1000 },
       options
     );
 
-    this.weights = tf.zeros([2, 1]);
+    this.weights = tf.zeros([this.features.shape[1], 1]);
   }
 
   gradientDescent() {
-    // solve: features * ((features * weights) - labels)
+    // solve: (features * ((features * weights) - labels)) / n
 
     // (features * weights). return [many, 1] shape tensor
     const currentGuesses = this.features.matMul(this.weights);
@@ -35,16 +30,16 @@ class LinearRegression {
     const slopes = this.features
       // change the shape of features tensor from [many, 2] to [2, many]
       .transpose()
-      // features * differences (matrix multiplication)
+      // features * differences. return [2, 1] shape tensor
       .matMul(differences)
       // divide by n (n = rows of the original features tensor)
       .div(this.features.shape[0]);
 
-    // get the new weights. [2, 1] shape
+    // modify the weights. [2, 1] shape
     this.weights = this.weights.sub(slopes.mul(this.options.learningRate));
   }
 
-  // no tensors
+  // no tensors version
   // gradientDescent() {
   //   // solve (m*x+b) part of the equation
   //   const currentGuessesForMPG = this.features.map((row) => {
@@ -83,6 +78,86 @@ class LinearRegression {
   train() {
     for (let i = 0; i < this.options.iterations; i++) {
       this.gradientDescent();
+      this.recordMSE();
+      this.updateLearningRate();
+    }
+  }
+
+  // check accuracy using R2 = 1 - (SSres / SStot)
+  // SS - sum of squares (residuals and total)
+  test(testFeatures, testLabels) {
+    testFeatures = this.processFeatures(testFeatures);
+    testLabels = tf.tensor(testLabels);
+
+    // return [many, 1] shape tensor
+    const predictions = testFeatures.matMul(this.weights);
+
+    // SStot = sum of all (Label - Mean) squared
+    const tot = testLabels
+      .sub(testLabels.mean())
+      .pow(2)
+      .sum()
+      .get();
+
+    // SSres = sum of all (Label - Predicted) squared
+    const res = testLabels
+      .sub(predictions)
+      .pow(2)
+      .sum()
+      .get();
+
+    return 1 - res / tot;
+  }
+
+  // prepare features tensor. standardize and add a column
+  processFeatures(features) {
+    features = tf.tensor(features);
+    // for test set use the existing mean and variance
+    // for training set get the mean and variance of features and standardize
+    if (this.mean && this.variance) {
+      features = features.sub(this.mean).div(this.variance.pow(0.5));
+    } else {
+      features = this.standardize(features);
+    }
+
+    // append features to a column of ones. return [many, 2] shape tensor
+    features = tf.ones([features.shape[0], 1]).concat(features, 1);
+
+    return features;
+  }
+
+  standardize(features) {
+    const { mean, variance } = tf.moments(features, 0);
+
+    this.mean = mean;
+    this.variance = variance;
+
+    return features.sub(mean).div(variance.pow(0.5));
+  }
+
+  // store all the MSE records. newest first
+  recordMSE() {
+    const mse = this.features
+      .matMul(this.weights)
+      .sub(this.labels)
+      .pow(2)
+      .sum()
+      .div(this.features.shape[0])
+      .get();
+
+    this.mseRecords.unshift(mse);
+  }
+
+  // use only if there is more than two MSE records stored
+  updateLearningRate() {
+    if (this.mseRecords.length < 2) {
+      return;
+    }
+    // decrease learning rate if MSE increased. otherwise add 5% to learning rate
+    if (this.mseRecords[0] > this.mseRecords[1]) {
+      this.options.learningRate *= 0.5;
+    } else {
+      this.options.learningRate *= 1.05;
     }
   }
 }
