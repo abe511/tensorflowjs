@@ -1,3 +1,4 @@
 
-Starter projects for learning about Machine Learning. hahaha
+Starter projects for learning about Machine Learning. hahaha.
+
 
